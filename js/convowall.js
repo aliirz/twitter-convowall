@@ -117,23 +117,7 @@ Convowall = (function($) {
 
             var template = that.o.theme_path+'/'+that.o.theme+'/entry.html.ejs';
 
-            function longurl(url,complete) {
-                $.ajax({
-                    type: 'GET',
-                    url:'http://api.longurl.org/v2/expand',
-                    data: {
-                        format: 'json',
-                        url: url
-                    },
-                    dataType: 'jsonp',
-                    success: function(data) {
-                        complete(data['long-url']);
-                    },
-                    error: function(data) {
-                        complete(null);
-                    }
-                });
-            }
+           
 
             function hideEntries() {
                 $(elem).find('.entry:gt('+ (that.o.limit-2) + ')').each(function () {
@@ -157,28 +141,48 @@ Convowall = (function($) {
                 function sendToEmbedly(url, opts) {
                     if (url.match(window.embedlyURLre)) {
                         $.embedly(url,opts);
-                        return;
                     }
                 };
-
-                data.oembed = {};
-                if (data.urls && data.urls.length > 0) {
-                    var opts = that.o.embedly;
-                    opts.success = function(oembed,dict) {
-                        if (oembed) {
-                            data.oembed = oembed;
-                            complete(data);
+                function longurl(url,complete) {
+                    $.ajax({
+                        type: 'GET',
+                        url:'http://api.longurl.org/v2/expand',
+                        data: {
+                            format: 'json',
+                            url: url
+                        },
+                        dataType: 'jsonp',
+                        success: function(data) {
+                            complete(data['long-url']);
+                        },
+                        error: function() {
+                            complete(null);
                         }
-                    };
+                    });
+                }
+                data.oembed = {};
+               
+                if (data.urls && data.urls.length > 0) {
+                    var opts = $.extend(that.o.embedly,{
+                        success:  function(oembed) {
+                            if (oembed) {
+                                data.oembed = oembed;
+                                complete(data);
+                            }
+                        }
+                    });
                     var url = data.urls[0];
                     if (url.match(/^http:\/\/(t\.co|bit\.ly|j\.mp|is\.gd|tinyurl\.com|twurl\.nl)/)) {
-                       longurl(url,function(url) {
-                           sendToEmbedly(url,opts);
-                       });
-                       return;
-                    } else sendToEmbedly(url,opts);
+                        longurl(url,function(longer) {
+                            if (!longer) longer = url;
+                            sendToEmbedly(longer,opts);
+                        });
+                    } else {
+                        sendToEmbedly(url,opts);
+                    }
+                } else {
+                    complete(data);
                 }
-                complete(data);
             };
 
             this.search(this.o.search, function(json) {
