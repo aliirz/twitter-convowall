@@ -40,6 +40,11 @@ The following options can be used in the call to $.convowall to customize the wa
 * __embedly__ - Options for parsing links using [Embedly](http://github.com/embedly/embedly-jquery).  See the Embedly jQuery documentation for available options.  If you want to bypass Embedly, you can set this option to null.
 * __reset__ - Number of minutes after which to reload the page. If you plan on running this for a long time (the length of a whole party) you may want to set this option to automatically refresh the page in case the browser gets stuck due to memory leaks or other problems that may occur when running Javascript over a long period of time.
 
+# Shortened URLs
+
+Twitter often shortens links in search results using the [t.co[(http://t.co) shortener.  The convowall will extract these t.co links before passing them on to Embedly.
+There is a [demo page][(http://lsemel.github.com/twitter-convowall/example_shorturls.html) that shows thie in action.
+
 # Themes
 
 Several example themes are included. The Keynote theme is designed to match the look of [Apple's Keynote application](http://www.apple.com/iwork/keynote/), and has a slot for a custom logo
