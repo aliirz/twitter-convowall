@@ -15,6 +15,7 @@ Convowall = (function($) {
     $.getScript(base+'/lib/jquery.dump.js');
     $.getScript(base+'/lib/view.js');
     $.getScript(base+'/lib/jquery.embedly.min.js');
+    $.getScript(base+'/lib/jquery.longurl.js');
 
 
     Convowall = {
@@ -136,6 +137,13 @@ Convowall = (function($) {
             };
 
             function processEmbeds(data, complete) {
+                function sendToEmbedly(url, opts) {
+                    if (url.match(window.embedlyURLre)) {
+                        $.embedly(url,opts);
+                        return;
+                    }
+                };
+
                 data.oembed = {};
                 if (data.urls && data.urls.length > 0) {
                     var opts = that.o.embedly;
@@ -146,10 +154,12 @@ Convowall = (function($) {
                         }
                     };
                     var url = data.urls[0];
-                    if (url.match(window.embedlyURLre)) {
-                        $.embedly(url,opts);
+                    if (url.match(/^http:\/\/(t\.co)/)) {
+                        $.longUrl([url],function(result) {
+                            alert($.dump(result));
+                        });
                         return;
-                    }
+                    } else sendToEmbedly(url,opts);
                 }
                 complete(data);
             };

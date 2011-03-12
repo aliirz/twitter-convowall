@@ -1,7 +1,7 @@
 
 
 $(document).ready(function() {
-    var text = ['Welcome to That Internet Party','Get your tweet up here by tagging it #thatinternetparty'];
+    var text = ['Welcome to That Internet Party','Get your tweet up here by tagging it #tiparty'];
     $('#logo-text').text(text[0]).fadeIn('slow');
     var index = 0;
     setInterval(function() {
