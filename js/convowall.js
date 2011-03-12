@@ -138,114 +138,126 @@ Convowall = (function($) {
             };
 
             function processEmbeds(data, complete) {
-                function sendToEmbedly(url, opts) {
-                    if (url.match(window.embedlyURLre)) {
-                        $.embedly(url,opts);
-                    }
-                };
-                function longurl(url,complete) {
-                    $.ajax({
-                        type: 'GET',
-                        url:'http://api.longurl.org/v2/expand',
-                        data: {
-                            format: 'json',
-                            url: url
-                        },
-                        dataType: 'jsonp',
-                        success: function(data) {
-                            complete(data['long-url']);
-                        },
-                        error: function() {
-                            complete(null);
-                        }
-                    });
-                }
-                data.oembed = {};
-               
-                if (data.urls && data.urls.length > 0) {
-                    var opts = $.extend(that.o.embedly,{
-                        success:  function(oembed) {
-                            if (oembed) {
-                                data.oembed = oembed;
-                                complete(data);
-                            }
-                        }
-                    });
-                    var url = data.urls[0];
-                    if (url.match(/^http:\/\/(t\.co|bit\.ly|j\.mp|is\.gd|tinyurl\.com|twurl\.nl)/)) {
-                        longurl(url,function(longer) {
-                            if (!longer) longer = url;
-                            sendToEmbedly(longer,opts);
-                        });
-                    } else {
-                        sendToEmbedly(url,opts);
-                    }
-                } else {
-                    complete(data);
-                }
-            };
-
-            this.search(this.o.search, function(json) {
-
-                if (!json || !json.results || json.results.length == 0) return;
-
-                that.o.search.rpp = 1;
-                
-                hideEntries();
-
-                that.o.search.since_id = json.results[0].id_str;
-
-                $(json.results).each(function(i,result) {
-                    // Add extra fields for use by the view
-                    var entry_date = new Date(Date.parse(result.created_at));
-                    var data = $.extend(result,{
-                        date: entry_date,
-                        urls: result.text.urls(),
-                        text_only: result.text.replace(/http:\/\/[A-Za-z0-9-_]+\.[A-Za-z0-9-_:%&\?\/.=]+/g,''),
-                        oembed: {}
-                    });
-
-                    that.o.embedly ? processEmbeds(data,showEntry) : showEntry(data);
-
-
+                var tweet = $.extend(data,{
+                    oembed:{}
                 });
 
-            });
-
-            timeout = setTimeout(function () {
-                that.update();
-            }, this.o.interval);
-           
-        },
-
-        search: function(o,success) {
-            var s = $.extend({
-                q:'',
-                lang:'en',
-                rpp:10,
-                since_id:-1,
-                refresh_url:null
-            },o);
-          
-            var url = "http://search.twitter.com/search.json";
-         
-            if (s.refresh_url) {
-                url += s.refresh_url + '&lang=' + s.lang + '&rpp=' + s.rpp + '&callback=?';
-            } else {
-                url += "?result_type=recent&q=" + encodeURIComponent(s.q) + "&lang=" + s.lang + "&rpp=" + s.rpp + "&since_id=" + s.since_id + "&callback=?";
+            var sendToEmbedly = function(url, opts) {
+              
+                if (url.match(window.embedlyURLre)) {
+                    $.embedly(url,opts);
+                } else {
+                    opts.success()
+                }
+            };
+            var longurl = function(url,complete) {
+                $.ajax({
+                    type: 'GET',
+                    url:'http://api.longurl.org/v2/expand',
+                    data: {
+                        format: 'json',
+                        url: url
+                    },
+                    dataType: 'jsonp',
+                    success: function(data) {
+                        complete(data['long-url']);
+                    },
+                    error: function() {
+                        complete(null);
+                    }
+                });
             }
-         
-            $.getJSON(url, function(json) {
-                if (json && json.results) success(json);
+               
+            if (tweet.urls && tweet.urls.length > 0) {
+                var url = tweet.urls[0];
+                if (url.match(/^http:\/\/(t\.co|bit\.ly|j\.mp|is\.gd|tinyurl\.com|twurl\.nl)/)) {
+                    longurl(url,function(longer) {
+                        if (!longer) longer = url;
+                        sendToEmbedly(longer,$.extend(that.o.embedly,{
+                            success:  function(oembed) {
+                                if (oembed) {
+                                    tweet.oembed = oembed;
+                                }
+                                complete(tweet);
+                            }
+                        }));
+                    });
+                } else {
+                    sendToEmbedly(url,$.extend(that.o.embedly,{
+                        success:  function(oembed) {
+                            if (oembed) {
+                                tweet.oembed = oembed;
+                            }
+                            complete(tweet);
+                        }
+                    }));
+                }
+            } else {
+                complete(tweet);
+            }
+        };
+
+        this.search(this.o.search, function(json) {
+
+            if (!json || !json.results || json.results.length == 0) return;
+
+            that.o.search.rpp = 1;
+                
+            hideEntries();
+
+            that.o.search.since_id = json.results[0].id_str;
+
+            $(json.results).each(function(i,result) {
+                // Add extra fields for use by the view
+                var entry_date = new Date(Date.parse(result.created_at));
+                var data = $.extend(result,{
+                    date: entry_date,
+                    urls: result.text.urls(),
+                    text_only: result.text.replace(/http:\/\/[A-Za-z0-9-_]+\.[A-Za-z0-9-_:%&\?\/.=]+/g,''),
+                    oembed: {}
+                });
+
+                that.o.embedly ? processEmbeds(data,showEntry) : showEntry(data);
+
+
             });
 
+        });
+
+        timeout = setTimeout(function () {
+            that.update();
+        }, this.o.interval);
+           
+    },
+
+    search: function(o,success) {
+        var s = $.extend({
+            q:'',
+            lang:'en',
+            rpp:10,
+            since_id:-1,
+            refresh_url:null
+        },o);
+          
+        var url = "http://search.twitter.com/search.json";
+         
+        if (s.refresh_url) {
+            url += s.refresh_url + '&lang=' + s.lang + '&rpp=' + s.rpp + '&callback=?';
+        } else {
+            url += "?result_type=recent&q=" + encodeURIComponent(s.q) + "&lang=" + s.lang + "&rpp=" + s.rpp + "&since_id=" + s.since_id + "&callback=?";
         }
-    };
+         
+        $.getJSON(url, function(json) {
+            if (json && json.results) success(json);
+        });
 
-    $.fn.convowall = function(o) {
-        Convowall.init(o,this);
-    };
+    }
+};
 
-    return Convowall;
+$.fn.convowall = function(o) {
+    Convowall.init(o,this);
+};
+
+return Convowall;
 
 })(jQuery);
