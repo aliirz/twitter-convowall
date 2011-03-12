@@ -142,48 +142,26 @@ Convowall = (function($) {
                     oembed:{}
                 });
 
-            var sendToEmbedly = function(url, opts) {
-              
-                if (url.match(window.embedlyURLre)) {
-                    $.embedly(url,opts);
-                } else {
-                    opts.success()
-                }
-            };
-            var longurl = function(url,complete) {
-                $.ajax({
-                    type: 'GET',
-                    url:'http://api.longurl.org/v2/expand',
-                    data: {
-                        format: 'json',
-                        url: url
-                    },
-                    dataType: 'jsonp',
-                    success: function(data) {
-                        complete(data['long-url']);
-                    },
-                    error: function() {
-                        complete(null);
-                    }
-                });
-            }
-               
-            if (tweet.urls && tweet.urls.length > 0) {
-                var url = tweet.urls[0];
-                if (url.match(/^http:\/\/(t\.co|bit\.ly|j\.mp|is\.gd|tinyurl\.com|twurl\.nl)/)) {
-                    longurl(url,function(longer) {
-                        if (!longer) longer = url;
-                        sendToEmbedly(longer,$.extend(that.o.embedly,{
-                            success:  function(oembed) {
-                                if (oembed) {
-                                    tweet.oembed = oembed;
-                                }
-                                complete(tweet);
-                            }
-                        }));
+                var longurl = function(url,complete) {
+                    $.ajax({
+                        type: 'GET',
+                        url:'http://api.longurl.org/v2/expand',
+                        data: {
+                            format: 'json',
+                            url: url
+                        },
+                        dataType: 'jsonp',
+                        success: function(data) {
+                            complete(data['long-url']);
+                        },
+                        error: function() {
+                            complete(null);
+                        }
                     });
-                } else {
-                    sendToEmbedly(url,$.extend(that.o.embedly,{
+                }
+                var afterLongurl = function(longer) {
+                    if (!longer) longer = url;
+                    sendToEmbedly(longer,$.extend(that.o.embedly,{
                         success:  function(oembed) {
                             if (oembed) {
                                 tweet.oembed = oembed;
@@ -191,73 +169,88 @@ Convowall = (function($) {
                             complete(tweet);
                         }
                     }));
+                };
+                var sendToEmbedly = function(url, opts) {
+                    if (url.match(window.embedlyURLre)) {
+                        $.embedly(url,opts);
+                    } else {
+                        opts.success()
+                    }
+                };
+
+                if (tweet.urls && tweet.urls.length > 0) {
+                    var url = tweet.urls[0];
+                    if (url.match(/^http:\/\/(t\.co|bit\.ly|j\.mp|is\.gd|tinyurl\.com|twurl\.nl)/)) {
+                        longurl(url,afterLongurl);
+                    } else {
+                        sendToEmbedly(url,afterLongurl);
+                    }
+                } else {
+                    complete(tweet);
                 }
-            } else {
-                complete(tweet);
-            }
-        };
+            };
 
-        this.search(this.o.search, function(json) {
+            this.search(this.o.search, function(json) {
 
-            if (!json || !json.results || json.results.length == 0) return;
+                if (!json || !json.results || json.results.length == 0) return;
 
-            that.o.search.rpp = 1;
+                that.o.search.rpp = 1;
                 
-            hideEntries();
+                hideEntries();
 
-            that.o.search.since_id = json.results[0].id_str;
+                that.o.search.since_id = json.results[0].id_str;
 
-            $(json.results).each(function(i,result) {
-                // Add extra fields for use by the view
-                var entry_date = new Date(Date.parse(result.created_at));
-                var data = $.extend(result,{
-                    date: entry_date,
-                    urls: result.text.urls(),
-                    text_only: result.text.replace(/http:\/\/[A-Za-z0-9-_]+\.[A-Za-z0-9-_:%&\?\/.=]+/g,''),
-                    oembed: {}
+                $(json.results).each(function(i,result) {
+                    // Add extra fields for use by the view
+                    var entry_date = new Date(Date.parse(result.created_at));
+                    var data = $.extend(result,{
+                        date: entry_date,
+                        urls: result.text.urls(),
+                        text_only: result.text.replace(/http:\/\/[A-Za-z0-9-_]+\.[A-Za-z0-9-_:%&\?\/.=]+/g,''),
+                        oembed: {}
+                    });
+
+                    that.o.embedly ? processEmbeds(data,showEntry) : showEntry(data);
+
+
                 });
-
-                that.o.embedly ? processEmbeds(data,showEntry) : showEntry(data);
-
 
             });
 
-        });
-
-        timeout = setTimeout(function () {
-            that.update();
-        }, this.o.interval);
+            timeout = setTimeout(function () {
+                that.update();
+            }, this.o.interval);
            
-    },
+        },
 
-    search: function(o,success) {
-        var s = $.extend({
-            q:'',
-            lang:'en',
-            rpp:10,
-            since_id:-1,
-            refresh_url:null
-        },o);
+        search: function(o,success) {
+            var s = $.extend({
+                q:'',
+                lang:'en',
+                rpp:10,
+                since_id:-1,
+                refresh_url:null
+            },o);
           
-        var url = "http://search.twitter.com/search.json";
+            var url = "http://search.twitter.com/search.json";
          
-        if (s.refresh_url) {
-            url += s.refresh_url + '&lang=' + s.lang + '&rpp=' + s.rpp + '&callback=?';
-        } else {
-            url += "?result_type=recent&q=" + encodeURIComponent(s.q) + "&lang=" + s.lang + "&rpp=" + s.rpp + "&since_id=" + s.since_id + "&callback=?";
+            if (s.refresh_url) {
+                url += s.refresh_url + '&lang=' + s.lang + '&rpp=' + s.rpp + '&callback=?';
+            } else {
+                url += "?result_type=recent&q=" + encodeURIComponent(s.q) + "&lang=" + s.lang + "&rpp=" + s.rpp + "&since_id=" + s.since_id + "&callback=?";
+            }
+         
+            $.getJSON(url, function(json) {
+                if (json && json.results) success(json);
+            });
+
         }
-         
-        $.getJSON(url, function(json) {
-            if (json && json.results) success(json);
-        });
+    };
 
-    }
-};
+    $.fn.convowall = function(o) {
+        Convowall.init(o,this);
+    };
 
-$.fn.convowall = function(o) {
-    Convowall.init(o,this);
-};
-
-return Convowall;
+    return Convowall;
 
 })(jQuery);
