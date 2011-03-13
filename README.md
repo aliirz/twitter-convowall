@@ -43,7 +43,7 @@ The following options can be used in the call to $.convowall to customize the wa
 # Shortened URLs
 
 Twitter often shortens links in search results using the [t.co](http://t.co) shortener.  The convowall will extract these t.co links before passing them on to Embedly.
-There is a [demo page](http://lsemel.github.com/twitter-convowall/example_shorturls.html) that shows thie in action.
+There is a [demo page](http://lsemel.github.com/twitter-convowall/example_shorturls.html) that shows this in action.
 
 # Themes
 

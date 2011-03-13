@@ -13,10 +13,6 @@ Convowall = (function($) {
     src = scripts[scripts.length-1].src;
     base = src.substring(0,src.lastIndexOf('/'));
 
-    $.getScript(base+'/lib/jquery.dump.js');
-    $.getScript(base+'/lib/view.js');
-    $.getScript(base+'/lib/jquery.embedly.min.js');
-
     Convowall = {
         o: {
             search: {
@@ -28,7 +24,7 @@ Convowall = (function($) {
             limit: 10,
             theme: 'keynote',
             theme_path: base + '/../themes',
-            interval: 3000,
+            interval: 5000,
             embedly: {
                 maxWidth: 250,
                 maxHeight: 250
@@ -44,20 +40,23 @@ Convowall = (function($) {
 
         init: function(s,elem) {
             var that = this;
-            this.elem = elem;
-            this.o = $.extend(this.o,s);
-            $.getScript(base+'/lib/ejs.js',function() {
-                if (that.o.theme) {
-                    that.loadTheme(that.o.theme);
-                }
+            that.o = $.extend(that.o,s);
+            that.elem = elem;
+
+            $.when(
+                $.getScript(base+'/lib/jquery.dump.js'),
+                $.getScript(base+'/lib/view.js'),
+                $.getScript(base+'/lib/jquery.embedly.min.js'),
+                $.getScript(base+'/lib/ejs.js')).then(function() {
+                that.loadTheme(that.o.theme);
+            }).done(function() {
                 that.start();
-            });
-            
-            if (this.o.reset) {
-                setTimeout(function() {
-                    window.location.reload();
-                }, this.o.reset*60*1000);
-            }
+                if (that.o.reset) {
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, that.o.reset*60*1000);
+                }
+            })
         },
 
         option: function(k,v) {
@@ -77,38 +76,37 @@ Convowall = (function($) {
         },
 
         loadTheme: function(theme) {
-            this.loadThemeJS(theme);
-            this.loadThemeCSS(theme);
-            var url = this.o.theme_path+'/'+this.o.theme+'/page.html.ejs';
-            var page = new EJS({
-                url: url
-            }).render(this.o);
-            $('body').append($(page));
-
+            var that = this;
+            $.when(
+                this.loadThemeJS(theme),
+                this.loadThemeCSS(theme)
+                ).then(function() {
+                var url = that.o.theme_path+'/'+that.o.theme+'/page.html.ejs';
+                var page = new EJS({
+                    url: url
+                }).render(this.o);
+                $('body').append($(page));
+            });
         },
 
         loadThemeJS: function(theme) {
             var url = this.o.theme_path+'/'+theme+'/init.js';
-            $.getScript(url);
+            return $.getScript(url);
         },
 
         loadThemeCSS: function(theme) {
             var that = this;
             var url = this.o.theme_path+'/'+theme+'/theme.css';
-            $.ajax({
+            return $.ajax({
                 url: url,
-                dataType: 'html',
-                success: function(css,textStatus,xhr) {
-                    $('<style type="text/css"></style>')
-                    .html(css)
-                    .appendTo("head");
-                },
-                error: function(xhr,textStatus,errorThrown) {
-                    alert('The url '+ url+' for theme \''+theme+'\' failed to load. Please check that the theme folder exists within '+that.o.theme_path+'.\n\nThe error thrown was:\n '+errorThrown);
-                }
+                dataType: 'html'
+            }).done(function(css,textStatus,xhr) {
+                $('<style type="text/css"></style>')
+                .html(css)
+                .appendTo("head");
+            }).fail(function(xhr,textStatus,errorThrown) {
+                alert('The url '+ url+' for theme \''+theme+'\' failed to load. Please check that the theme folder exists within '+that.o.theme_path+'.\n\nThe error thrown was:\n '+errorThrown);
             });
-
-
         },
 
         update: function() {
@@ -202,9 +200,8 @@ Convowall = (function($) {
 
                 $(json.results).each(function(i,result) {
                     // Add extra fields for use by the view
-                    var entry_date = new Date(Date.parse(result.created_at));
                     var data = $.extend(result,{
-                        date: entry_date,
+                        date: new Date(Date.parse(result.created_at)),
                         urls: result.text.urls(),
                         text_only: result.text.replace(/http:\/\/[A-Za-z0-9-_]+\.[A-Za-z0-9-_:%&\?\/.=]+/g,''),
                         oembed: {}
