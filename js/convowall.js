@@ -109,95 +109,89 @@ Convowall = (function($) {
             });
         },
 
-        update: function() {
+
+        hideEntries: function() {
+            $(this.elem).find('.entry:gt('+ (this.o.limit-2) + ')').each(function () {
+                $(this).fadeOut('slow')
+            });
+
+        },
+
+        showEntry: function (data) {
+            var template = this.o.theme_path+'/'+this.o.theme+'/entry.html.ejs';
+            var ejs = new EJS({
+                url: template
+            });
+
+            var div = $('<div></div>').addClass('entry').html(ejs.render(data)).hide();
+            this.elem.prepend(div);
+            div.fadeIn('slow');
+        },
+
+        // Returns a deferred object that resolves to an oembed or empty object
+        processEmbeds: function(data) {
             var that = this;
-            var elem = this.elem;
+            var dfr = $.Deferred();
 
-            var template = that.o.theme_path+'/'+that.o.theme+'/entry.html.ejs';
-
-           
-
-            function hideEntries() {
-                $(elem).find('.entry:gt('+ (that.o.limit-2) + ')').each(function () {
-                    $(this).fadeOut('slow')
+            // Returns a deferred object that resolves to a lengthened URL
+            var longurl = function(url) {
+                var dfr = $.Deferred();
+                $.ajax({
+                    type: 'GET',
+                    url:'http://api.longurl.org/v2/expand',
+                    data: {
+                        format: 'json',
+                        url: url
+                    },
+                    dataType: 'jsonp'
+                }).done(function(data) {
+                    dfr.resolve(data['long-url']);
+                }).fail(function() {
+                    dfr.resolve(url);
                 });
+                return dfr.promise();
+            }
 
-            };
-
-            function showEntry(data) {
-                var ejs = new EJS({
-                    url: template
-                });
-              
-                var div = $('<div></div>').addClass('entry').html(ejs.render(data)).hide();
-             
-                elem.prepend(div);
-                div.fadeIn('slow');
-            };
-
-            function processEmbeds(data, complete) {
-                var tweet = $.extend(data,{
-                    oembed:{}
-                });
-
-                var longurl = function(url,complete) {
-                    $.ajax({
-                        type: 'GET',
-                        url:'http://api.longurl.org/v2/expand',
-                        data: {
-                            format: 'json',
-                            url: url
-                        },
-                        dataType: 'jsonp',
-                        success: function(data) {
-                            complete(data['long-url']);
-                        },
-                        error: function() {
-                            complete(null);
-                        }
-                    });
-                }
-                var afterLongurl = function(longer) {
-                    if (!longer) longer = url;
-                    sendToEmbedly(longer,$.extend(that.o.embedly,{
+            // Returns a deferred object that resolves to an oembed object or empty object
+            var sendToEmbedly = function(url) {
+                var dfr = $.Deferred();
+                if (url.match(window.embedlyURLre)) {
+                    $.embedly(url,$.extend(that.o.embedly,{
                         success:  function(oembed) {
-                            if (oembed) {
-                                tweet.oembed = oembed;
-                            }
-                            complete(tweet);
+                            dfr.resolve(oembed);
                         }
                     }));
-                };
-                var sendToEmbedly = function(url, opts) {
-                    if (url.match(window.embedlyURLre)) {
-                        $.embedly(url,opts);
-                    } else {
-                        opts.success()
-                    }
-                };
-
-                if (tweet.urls && tweet.urls.length > 0) {
-                    var url = tweet.urls[0];
-                    if (url.match(/^http:\/\/(t\.co|bit\.ly|j\.mp|is\.gd|tinyurl\.com|twurl\.nl)/)) {
-                        longurl(url,afterLongurl);
-                    } else {
-                        sendToEmbedly(url,afterLongurl);
-                    }
                 } else {
-                    complete(tweet);
+                    dfr.resolve({});
                 }
+                return dfr.promise();
             };
 
+            if (data.urls && data.urls.length > 0) {
+                var url = data.urls[0];
+                if (url.match(/^http:\/\/(t\.co|bit\.ly|j\.mp|is\.gd|tinyurl\.com|twurl\.nl)/)) {
+                    longurl(url).done(function(url) {
+                        sendToEmbedly(url).then(function(oembed) {
+                            dfr.resolve(oembed);
+                        });
+                    });
+                    return dfr.promise();
+                } else {
+                    return sendToEmbedly(url);
+                }
+            }
+            dfr.resolve({});
+            return dfr.promise();
+        },
+
+        update: function() {
+            var that = this;
+        
             this.search(this.o.search, function(json) {
-
                 if (!json || !json.results || json.results.length == 0) return;
-
                 that.o.search.rpp = 1;
-                
-                hideEntries();
-
+                that.hideEntries();
                 that.o.search.since_id = json.results[0].id_str;
-
                 $(json.results).each(function(i,result) {
                     // Add extra fields for use by the view
                     var data = $.extend(result,{
@@ -206,10 +200,13 @@ Convowall = (function($) {
                         text_only: result.text.replace(/http:\/\/[A-Za-z0-9-_]+\.[A-Za-z0-9-_:%&\?\/.=]+/g,''),
                         oembed: {}
                     });
-
-                    that.o.embedly ? processEmbeds(data,showEntry) : showEntry(data);
-
-
+                  
+                   
+                    that.o.embedly ? that.processEmbeds(data).then(function(oembed) {
+                        data.oembed = oembed;
+                        that.showEntry(data);
+                    }) : that.showEntry(data);
+                   
                 });
 
             });
