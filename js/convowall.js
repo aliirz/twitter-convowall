@@ -111,8 +111,8 @@ Convowall = (function($) {
 
 
         hideEntries: function() {
-            $(this.elem).find('.entry:gt('+ (this.o.limit-2) + ')').each(function () {
-                $(this).fadeOut('slow')
+            this.elem.find('.entry:gt('+ (this.o.limit-2) + ')').each(function () {
+                this.fadeOut('slow')
             });
 
         },
@@ -187,7 +187,7 @@ Convowall = (function($) {
         update: function() {
             var that = this;
         
-            this.search(this.o.search, function(json) {
+            this.search(this.o.search).done(function(json) {
                 if (!json || !json.results || json.results.length == 0) return;
                 that.o.search.rpp = 1;
                 that.hideEntries();
@@ -201,14 +201,12 @@ Convowall = (function($) {
                         oembed: {}
                     });
                   
-                   
                     that.o.embedly ? that.processEmbeds(data).then(function(oembed) {
                         data.oembed = oembed;
                         that.showEntry(data);
                     }) : that.showEntry(data);
                    
                 });
-
             });
 
             timeout = setTimeout(function () {
@@ -217,7 +215,8 @@ Convowall = (function($) {
            
         },
 
-        search: function(o,success) {
+        // Returns a deferred object that resolves to a set of Twitter search results
+        search: function(o) {
             var s = $.extend({
                 q:'',
                 lang:'en',
@@ -227,17 +226,13 @@ Convowall = (function($) {
             },o);
           
             var url = "http://search.twitter.com/search.json";
-         
             if (s.refresh_url) {
                 url += s.refresh_url + '&lang=' + s.lang + '&rpp=' + s.rpp + '&callback=?';
             } else {
                 url += "?result_type=recent&q=" + encodeURIComponent(s.q) + "&lang=" + s.lang + "&rpp=" + s.rpp + "&since_id=" + s.since_id + "&callback=?";
             }
          
-            $.getJSON(url, function(json) {
-                if (json && json.results) success(json);
-            });
-
+            return $.getJSON(url);
         }
     };
 
