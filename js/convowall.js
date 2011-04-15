@@ -1,4 +1,3 @@
-
 String.prototype.urls = function () {
     return this.match(/http:\/\/[A-Za-z0-9-_]+\.[A-Za-z0-9-_:%&\?\/.=]+/g);
 };
@@ -6,7 +5,7 @@ String.prototype.urls = function () {
 
 Convowall = (function($) {
 
-   
+
     // Would be nice if AJAX could use .. when run using file:// urls
 
     var scripts = document.getElementsByTagName("script"),
@@ -111,10 +110,7 @@ Convowall = (function($) {
 
 
         hideEntries: function() {
-            this.elem.find('.entry:gt('+ (this.o.limit-2) + ')').each(function () {
-                this.fadeOut('slow')
-            });
-
+            this.elem.find('.entry:gt('+ (this.o.limit-2) + ')').fadeOut('slow');
         },
 
         showEntry: function (data) {
@@ -186,10 +182,10 @@ Convowall = (function($) {
 
         update: function() {
             var that = this;
-        
+
             this.search(this.o.search).done(function(json) {
                 if (!json || !json.results || json.results.length == 0) return;
-                that.o.search.rpp = 1;
+		//that.o.search.rpp = 1;
                 that.hideEntries();
                 that.o.search.since_id = json.results[0].id_str;
                 $(json.results).each(function(i,result) {
@@ -200,19 +196,18 @@ Convowall = (function($) {
                         text_only: result.text.replace(/http:\/\/[A-Za-z0-9-_]+\.[A-Za-z0-9-_:%&\?\/.=]+/g,''),
                         oembed: {}
                     });
-                  
                     that.o.embedly ? that.processEmbeds(data).then(function(oembed) {
                         data.oembed = oembed;
                         that.showEntry(data);
                     }) : that.showEntry(data);
-                   
-                });
+
+               });
             });
 
             timeout = setTimeout(function () {
                 that.update();
             }, this.o.interval);
-           
+
         },
 
         // Returns a deferred object that resolves to a set of Twitter search results
@@ -224,14 +219,14 @@ Convowall = (function($) {
                 since_id:-1,
                 refresh_url:null
             },o);
-          
+
             var url = "http://search.twitter.com/search.json";
             if (s.refresh_url) {
                 url += s.refresh_url + '&lang=' + s.lang + '&rpp=' + s.rpp + '&callback=?';
             } else {
                 url += "?result_type=recent&q=" + encodeURIComponent(s.q) + "&lang=" + s.lang + "&rpp=" + s.rpp + "&since_id=" + s.since_id + "&callback=?";
             }
-         
+
             return $.getJSON(url);
         }
     };
