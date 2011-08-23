@@ -1,7 +1,7 @@
 # Twitter Convowall - Project tweets on the big screen at parties, talks, conferences, and offices
 
 Convowall is an easy-to-customize, themeable, jQuery-based Twitter conversation wall that can be used to project tweets on a big screen.
-This is based on the Twitter walls we run at the [Shorty Awards](http://shortyawards.com), an awards competition and event that the New York Times has called "The Oscars for Twitter".
+This is based on the Twitter walls we run at the [Shorty Awards](http://shortyawards.com).
 It has been generalized to allow for more flexible options and multiple themes.
 
 # Examples
